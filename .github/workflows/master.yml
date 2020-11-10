@@ -1,0 +1,51 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  TAG:  ${GITHUB_REF#refs/*/}
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Docker Login
+      uses: docker/login-action@v1.6.0
+      with:
+        registry: quay.io
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
+    
+
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Get dependencies
+      run: |
+        go get -v -t -d -tags containers_image_storage_stub ./...
+
+    - name: Build
+      run: ./build/build.sh
+      env:
+        IMAGES: ${{ secrets.DOCKER_USERNAME }}
+        TAG: "snapshot"
+
+    - name: Push to Quay
+      uses: docker/build-push-action@v2
+      with:
+        key:  
+        tag_with_ref: true:  
+
+    - name: Test
+      run: go test -v .
